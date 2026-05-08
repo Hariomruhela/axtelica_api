@@ -283,8 +283,128 @@ def contact():
             "success": False,
             "error": str(e)
         }), 500
+    
 
+# =========================
+# DEMO API for product
+# =========================
+@app.route("/api/product", methods=["POST"])
+def product():
 
+    try:
+
+        print("✅ DEMO API HIT")
+
+        data = request.get_json()
+
+        print("✅ DEMO DATA:", data)
+
+        # ✅ Check JSON
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "No JSON data received"
+            }), 400
+
+        # =========================
+        # GET VALUES
+        # =========================
+        firstName = data.get("firstName", "").strip()
+        lastName = data.get("lastName", "").strip()
+        company = data.get("company", "").strip()
+        email = data.get("email", "").strip()
+        phone = data.get("phone", "").strip()
+        employees = data.get("employees", "").strip()
+        country = data.get("country", "").strip()
+
+        # =========================
+        # VALIDATION
+        # =========================
+        if not firstName:
+            return jsonify({"success": False, "error": "First Name is required"}), 400
+
+        if not lastName:
+            return jsonify({"success": False, "error": "Last Name is required"}), 400
+
+        if not company:
+            return jsonify({"success": False, "error": "Company is required"}), 400
+
+        if not email:
+            return jsonify({"success": False, "error": "Email is required"}), 400
+
+        if not phone:
+            return jsonify({"success": False, "error": "Phone is required"}), 400
+
+        if not employees:
+            return jsonify({"success": False, "error": "Employees is required"}), 400
+
+        if not country:
+            return jsonify({"success": False, "error": "Country is required"}), 400
+
+        # =========================
+        # EMAIL HTML TEMPLATE
+        # =========================
+        html = f"""
+        <div style="
+            max-width:600px;
+            margin:auto;
+            font-family:Arial;
+            padding:20px;
+            border:1px solid #eee;
+            border-radius:10px;
+        ">
+
+            <h2 style="color:#FF3366;">
+                🚀 New Demo Request
+            </h2>
+
+            <p><b>Name:</b> {firstName} {lastName}</p>
+
+            <p><b>Company:</b> {company}</p>
+
+            <p><b>Email:</b> {email}</p>
+
+            <p><b>Phone:</b> {phone}</p>
+
+            <p><b>Employees:</b> {employees}</p>
+
+            <p><b>Country:</b> {country}</p>
+
+            <hr style="margin:20px 0;" />
+
+            <p style="font-size:12px;color:gray;">
+                Submitted from Axtelica Demo Form
+            </p>
+
+        </div>
+        """
+
+        print("✅ BEFORE DEMO EMAIL")
+
+        # =========================
+        # SEND EMAIL
+        # =========================
+        send_email(
+            "🚀 New Demo Request",
+            html,
+            email
+        )
+
+        print("✅ AFTER DEMO EMAIL")
+
+        return jsonify({
+            "success": True,
+            "message": "Demo request sent successfully"
+        })
+
+    except Exception as e:
+
+        print("❌ DEMO API ERROR:", str(e))
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 # =========================
 # RUN SERVER
 # =========================
