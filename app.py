@@ -37,7 +37,7 @@ def send_email(subject, html_content, reply_to=None):
         msg = MIMEMultipart()
 
         msg["From"] = "Axtelica <info@axtelica.com>"
-        msg["To"] = "hariomruhela0@gmail.com"
+        msg["To"] = "hello@techquitoes.com"
         msg["Subject"] = subject
 
         if reply_to:
@@ -56,7 +56,7 @@ def send_email(subject, html_content, reply_to=None):
 
         server.sendmail(
             EMAIL_USER,
-            "hariomruhela0@gmail.com",
+            "hello@techquitoes.com",
             msg.as_string()
         )
 
@@ -355,7 +355,7 @@ def product():
         ">
 
             <h2 style="color:#FF3366;">
-                🚀 New Demo Request
+                🚀 New Demo Request From Product Page
             </h2>
 
             <p><b>Name:</b> {firstName} {lastName}</p>
