@@ -104,7 +104,7 @@ def demo():
         scheduleDemoFor = data.get("scheduleDemoFor")
 
         html = f"""
-        <h2>🚀 New Demo Request</h2>
+        <h2>📩 New Demo Request from Axtelica website </h2>
 
         <p><b>Name:</b> {firstName} {lastName}</p>
         <p><b>Email:</b> {email}</p>
@@ -127,7 +127,7 @@ def demo():
         print("✅ BEFORE EMAIL")
 
         send_email(
-            "🚀 New Demo Request",
+            "📩 New Demo Request from Axtelica",
             html,
             email
         )
@@ -231,7 +231,7 @@ def contact():
         ">
 
             <h2 style="color:#FF3366;">
-                📩 New Contact Message
+                📩 New Contact Message from Axtelica
             </h2>
 
             <p><b>Name:</b> {firstName} {lastName}</p>
@@ -355,7 +355,7 @@ def product():
         ">
 
             <h2 style="color:#FF3366;">
-                🚀 New Demo Request From Product Page
+                📩 New Demo Request From Axtelica Product 
             </h2>
 
             <p><b>Name:</b> {firstName} {lastName}</p>
@@ -385,7 +385,7 @@ def product():
         # SEND EMAIL
         # =========================
         send_email(
-            "🚀 New Demo Request",
+            "📩New Demo Request from Axtelica Product",
             html,
             email
         )
