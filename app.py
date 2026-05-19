@@ -132,7 +132,7 @@ def generate_captcha_image(text):
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
     ]:
         try:
-            font = ImageFont.truetype(path, 42)
+            font = ImageFont.truetype(path, 60)
             break
         except Exception:
             continue
@@ -143,9 +143,9 @@ def generate_captcha_image(text):
     x_offset = 12
     for char in text:
         color    = (random.randint(20, 100), random.randint(20, 100), random.randint(20, 100))
-        y_offset = random.randint(5, 18)
+        y_offset = random.randint(8, 22)
         draw.text((x_offset, y_offset), char, font=font, fill=color)
-        x_offset += random.randint(28, 34)
+        x_offset += random.randint(40, 46)
 
     image = image.filter(ImageFilter.GaussianBlur(radius=0.8))
 
