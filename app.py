@@ -132,7 +132,7 @@ def generate_captcha_image(text):
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
     ]:
         try:
-            font = ImageFont.truetype(path, 32)
+            font = ImageFont.truetype(path, 42)
             break
         except Exception:
             continue
