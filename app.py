@@ -6,354 +6,589 @@ import os
 import io
 import random
 import base64
-import smtplib
 import hmac
 import hashlib
 import time
+import requests as http_requests
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
-# =========================
+# =========================================================
 # LOAD ENV VARIABLES
-# =========================
+# =========================================================
 load_dotenv()
 
-EMAIL_USER  = os.getenv("EMAIL_USER")
-EMAIL_PASS  = os.getenv("EMAIL_PASS")
+MS_TENANT_ID     = os.getenv("MS_TENANT_ID")
+MS_CLIENT_ID     = os.getenv("MS_CLIENT_ID")
+MS_CLIENT_SECRET = os.getenv("MS_CLIENT_SECRET")
+MS_SENDER_EMAIL  = os.getenv("MS_SENDER_EMAIL")
+SALES_TO_EMAIL   = os.getenv("SALES_TO_EMAIL")
 
-# ✅ Keep this secret & consistent across deployments — set it in Vercel env vars
-CAPTCHA_SECRET = os.getenv("CAPTCHA_SECRET", "axtelica-captcha-secret-2025")
+CAPTCHA_SECRET = os.getenv(
+    "CAPTCHA_SECRET",
+    "axtelica-captcha-secret-2025"
+)
 
-# =========================
-# FLASK APP  (no session needed)
-# =========================
+# =========================================================
+# FLASK APP
+# =========================================================
 app = Flask(__name__)
 
-# ✅ Allowed origins — add all your frontend URLs here
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "https://axtelica.com",
     "https://www.axtelica.com",
 ]
 
-CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=True)
+CORS(
+    app,
+    origins=ALLOWED_ORIGINS,
+    supports_credentials=True
+)
 
-# =========================
-# CAPTCHA TOKEN HELPERS
-# =========================
-CAPTCHA_TTL = 600  # seconds — token valid for 10 minutes
+# =========================================================
+# MICROSOFT GRAPH ACCESS TOKEN
+# =========================================================
+def get_ms_access_token():
+    url = f"https://login.microsoftonline.com/{MS_TENANT_ID}/oauth2/v2.0/token"
 
-def make_captcha_token(answer: str) -> str:
-    """
-    Build a stateless signed token:  base64(answer:timestamp):hmac_signature
-    The answer is stored inside the token itself, protected by an HMAC.
-    No session or database needed.
-    """
-    ts      = str(int(time.time()))
-    payload = base64.urlsafe_b64encode(f"{answer.upper()}:{ts}".encode()).decode()
-    sig     = hmac.new(CAPTCHA_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    return f"{payload}.{sig}"
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": MS_CLIENT_ID,
+        "client_secret": MS_CLIENT_SECRET,
+        "scope": "https://graph.microsoft.com/.default",
+    }
+
+    response = http_requests.post(
+        url,
+        data=payload,
+        timeout=20
+    )
+
+    response.raise_for_status()
+
+    return response.json()["access_token"]
 
 
-def verify_captcha_token(token: str, user_answer: str) -> tuple[bool, str]:
-    """
-    Verify the token.
-    Returns (True, "") on success, or (False, error_message) on failure.
-    """
+# =========================================================
+# SEND EMAIL USING MICROSOFT GRAPH
+# =========================================================
+def send_email(subject, html_content, reply_to=None):
     try:
-        payload, sig = token.rsplit(".", 1)
-    except ValueError:
-        return False, "Invalid CAPTCHA token format."
+        access_token = get_ms_access_token()
 
-    # Check signature
-    expected_sig = hmac.new(CAPTCHA_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected_sig, sig):
-        return False, "Invalid CAPTCHA token. Please refresh and try again."
+        message = {
+            "subject": subject,
+            "body": {
+                "contentType": "HTML",
+                "content": html_content
+            },
+            "toRecipients": [
+                {
+                    "emailAddress": {
+                        "address": SALES_TO_EMAIL
+                    }
+                }
+            ]
+        }
 
-    # Decode payload
-    try:
-        decoded        = base64.urlsafe_b64decode(payload.encode()).decode()
-        answer, ts_str = decoded.rsplit(":", 1)
-        ts             = int(ts_str)
-    except Exception:
-        return False, "Corrupted CAPTCHA token. Please refresh and try again."
+        # reply to user email
+        if reply_to:
+            message["replyTo"] = [
+                {
+                    "emailAddress": {
+                        "address": reply_to
+                    }
+                }
+            ]
 
-    # Check expiry
-    if time.time() - ts > CAPTCHA_TTL:
-        return False, "CAPTCHA expired. Please refresh the code and try again."
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
 
-    # Check answer (case-insensitive)
-    if user_answer.strip().upper() != answer.upper():
-        return False, "Incorrect CAPTCHA code. Please try again."
+        graph_url = f"https://graph.microsoft.com/v1.0/users/{MS_SENDER_EMAIL}/sendMail"
 
-    return True, ""
+        response = http_requests.post(
+            graph_url,
+            headers=headers,
+            json={
+                "message": message,
+                "saveToSentItems": True
+            },
+            timeout=20
+        )
+
+        if response.status_code == 202:
+            print("✅ Email sent successfully")
+            return True
+
+        print("❌ Graph API Error")
+        print(response.status_code)
+        print(response.text)
+
+        return False
+
+    except Exception as e:
+        print("❌ EMAIL ERROR:", str(e))
+        return False
 
 
-# =========================
+# =========================================================
+# CAPTCHA SETTINGS
+# =========================================================
+CAPTCHA_TTL = 600  # 10 minutes
+
+
+# =========================================================
 # GENERATE CAPTCHA TEXT
-# =========================
+# =========================================================
 def generate_captcha_text(length=5):
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     return "".join(random.choices(chars, k=length))
 
 
-# =========================
-# GENERATE CAPTCHA IMAGE
-# =========================
-def generate_captcha_image(text):
-    width, height = 180, 60
-    image = Image.new("RGB", (width, height), color=(245, 245, 250))
-    draw  = ImageDraw.Draw(image)
+# =========================================================
+# CREATE CAPTCHA TOKEN
+# =========================================================
+def make_captcha_token(answer):
+    timestamp = str(int(time.time()))
 
-    # Noise lines
+    payload_string = f"{answer.upper()}:{timestamp}"
+
+    payload = base64.urlsafe_b64encode(
+        payload_string.encode()
+    ).decode()
+
+    signature = hmac.new(
+        CAPTCHA_SECRET.encode(),
+        payload.encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+    return f"{payload}.{signature}"
+
+
+# =========================================================
+# VERIFY CAPTCHA TOKEN
+# =========================================================
+def verify_captcha_token(token, user_answer):
+
+    try:
+        if not token:
+            return False, "CAPTCHA token missing"
+
+        if not user_answer:
+            return False, "Please enter CAPTCHA"
+
+        # split token
+        payload, signature = token.rsplit(".", 1)
+
+        # create expected signature
+        expected_signature = hmac.new(
+            CAPTCHA_SECRET.encode(),
+            payload.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+        # compare signatures
+        if not hmac.compare_digest(signature, expected_signature):
+            return False, "Invalid CAPTCHA token"
+
+        # decode payload properly
+        padded_payload = payload + "=" * (-len(payload) % 4)
+
+        decoded = base64.urlsafe_b64decode(
+            padded_payload.encode()
+        ).decode()
+
+        answer, timestamp = decoded.rsplit(":", 1)
+
+        timestamp = int(timestamp)
+
+        # check expiry
+        if time.time() - timestamp > CAPTCHA_TTL:
+            return False, "CAPTCHA expired"
+
+        # compare answer
+        if user_answer.strip().upper() != answer.strip().upper():
+            return False, "Incorrect CAPTCHA code"
+
+        return True, ""
+
+    except Exception as e:
+        print("❌ CAPTCHA VERIFY ERROR:", str(e))
+        return False, "CAPTCHA verification failed"
+
+
+# =========================================================
+# GENERATE CAPTCHA IMAGE
+# =========================================================
+def generate_captcha_image(text):
+
+    width = 180
+    height = 60
+
+    image = Image.new(
+        "RGB",
+        (width, height),
+        color=(245, 245, 250)
+    )
+
+    draw = ImageDraw.Draw(image)
+
+    # random lines
     for _ in range(6):
         draw.line(
-            [(random.randint(0, width), random.randint(0, height)),
-             (random.randint(0, width), random.randint(0, height))],
-            fill=(random.randint(150, 220), random.randint(150, 220), random.randint(150, 220)),
+            (
+                random.randint(0, width),
+                random.randint(0, height),
+                random.randint(0, width),
+                random.randint(0, height)
+            ),
+            fill=(
+                random.randint(150, 220),
+                random.randint(150, 220),
+                random.randint(150, 220)
+            ),
             width=1
         )
 
-    # Noise dots
-    for _ in range(80):
+    # random dots
+    for _ in range(100):
         draw.point(
-            (random.randint(0, width), random.randint(0, height)),
-            fill=(random.randint(100, 200), random.randint(100, 200), random.randint(100, 200))
+            (
+                random.randint(0, width),
+                random.randint(0, height)
+            ),
+            fill=(
+                random.randint(120, 200),
+                random.randint(120, 200),
+                random.randint(120, 200)
+            )
         )
 
-    # Font
+    # font
     font = None
-    for path in [
+
+    font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    ]:
+    ]
+
+    for path in font_paths:
         try:
-            font = ImageFont.truetype(path, 60)
+            font = ImageFont.truetype(path, 40)
             break
-        except Exception:
-            continue
-    if font is None:
+        except:
+            pass
+
+    if not font:
         font = ImageFont.load_default()
 
-    # Draw characters
-    x_offset = 12
+    x = 12
+
     for char in text:
-        color    = (random.randint(20, 100), random.randint(20, 100), random.randint(20, 100))
-        y_offset = random.randint(8, 22)
-        draw.text((x_offset, y_offset), char, font=font, fill=color)
-        x_offset += random.randint(40, 46)
 
-    image = image.filter(ImageFilter.GaussianBlur(radius=0.8))
+        color = (
+            random.randint(10, 80),
+            random.randint(10, 80),
+            random.randint(10, 80)
+        )
 
-    buf = io.BytesIO()
-    image.save(buf, format="PNG")
-    buf.seek(0)
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+        y = random.randint(8, 15)
 
+        draw.text(
+            (x, y),
+            char,
+            font=font,
+            fill=color
+        )
 
-# =========================
-# SEND EMAIL
-# =========================
-def send_email(subject, html_content, reply_to=None):
-    try:
-        msg           = MIMEMultipart()
-        msg["From"]   = "Axtelica <info@axtelica.com>"
-        msg["To"]     = "hello@techquitoes.com"  
-        msg["Subject"] = subject
-        if reply_to:
-            msg["Reply-To"] = reply_to
-        msg.attach(MIMEText(html_content, "html"))
+        x += 32
 
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.ehlo()
-        server.starttls()
-        server.login(EMAIL_USER, EMAIL_PASS)
-        server.sendmail(EMAIL_USER, "hello@techquitoes.com", msg.as_string())
-        server.quit()
-        print("✅ Email sent")
-    except Exception as e:
-        print("❌ Email error:", e)
-        raise e
+    image = image.filter(ImageFilter.GaussianBlur(radius=0.5))
+
+    buffer = io.BytesIO()
+
+    image.save(buffer, format="PNG")
+
+    image_base64 = base64.b64encode(
+        buffer.getvalue()
+    ).decode("utf-8")
+
+    return f"data:image/png;base64,{image_base64}"
 
 
-# =========================
-# ROUTES
-# =========================
-
+# =========================================================
+# HOME ROUTE
+# =========================================================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"success": True, "message": "API Running 🚀"})
+    return jsonify({
+        "success": True,
+        "message": "Axtelica API Running 🚀"
+    })
 
 
-# ── CAPTCHA GENERATE ──────────────────────────────────────────
+# =========================================================
+# CAPTCHA ROUTE
+# =========================================================
 @app.route("/api/captcha", methods=["GET"])
-def get_captcha():
-    """
-    Returns:
-      captcha_image  — base64 PNG
-      captcha_token  — signed token containing the answer (sent to frontend,
-                       returned with the form, verified on the server)
-    """
+def captcha():
+
     try:
-        text  = generate_captcha_text()
-        token = make_captcha_token(text)
-        image = generate_captcha_image(text)
-        print(f"✅ CAPTCHA generated (stateless token)")
-        return jsonify({"success": True, "captcha_image": image, "captcha_token": token})
+        captcha_text = generate_captcha_text()
+
+        captcha_token = make_captcha_token(captcha_text)
+
+        captcha_image = generate_captcha_image(captcha_text)
+
+        print("✅ CAPTCHA GENERATED:", captcha_text)
+
+        return jsonify({
+            "success": True,
+            "captcha_image": captcha_image,
+            "captcha_token": captcha_token
+        })
+
     except Exception as e:
-        print("❌ CAPTCHA error:", e)
-        return jsonify({"success": False, "error": str(e)}), 500
+        print("❌ CAPTCHA ERROR:", str(e))
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
-# ── DEMO FORM ─────────────────────────────────────────────────
+# =========================================================
+# DEMO ROUTE
+# =========================================================
 @app.route("/api/demo", methods=["POST"])
 def demo():
+
     try:
+
         data = request.get_json()
-        print("✅ DEMO data received")
 
-        # ── CAPTCHA VERIFICATION ──
-        user_answer   = data.get("captchaAnswer", "")
-        captcha_token = data.get("captchaToken", "")
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "No data received"
+            }), 400
 
-        if not user_answer:
-            return jsonify({"success": False, "error": "Please enter the CAPTCHA code."}), 400
-        if not captcha_token:
-            return jsonify({"success": False, "error": "CAPTCHA token missing. Please refresh the page."}), 400
+        # =================================================
+        # CAPTCHA VERIFY
+        # =================================================
+        captcha_answer = data.get("captchaAnswer", "").strip()
 
-        ok, err_msg = verify_captcha_token(captcha_token, user_answer)
-        if not ok:
-            return jsonify({"success": False, "error": err_msg}), 400
-        # ── END CAPTCHA ──
+        captcha_token = data.get("captchaToken", "").strip()
 
-        firstName       = data.get("firstName")
-        lastName        = data.get("lastName")
-        company         = data.get("company")
-        email           = data.get("email")
-        phone           = data.get("phone")
-        employees       = data.get("employees")
-        country         = data.get("country")
-        scheduleDemoFor = data.get("scheduleDemoFor")
+        print("USER CAPTCHA:", captcha_answer)
+
+        is_valid, captcha_error = verify_captcha_token(
+            captcha_token,
+            captcha_answer
+        )
+
+        if not is_valid:
+            return jsonify({
+                "success": False,
+                "error": captcha_error
+            }), 400
+
+        # =================================================
+        # FORM DATA
+        # =================================================
+        firstName = data.get("firstName", "")
+        lastName = data.get("lastName", "")
+        company = data.get("company", "")
+        email = data.get("email", "")
+        phone = data.get("phone", "")
+        employees = data.get("employees", "")
+        country = data.get("country", "")
+        scheduleDemoFor = data.get("scheduleDemoFor", "")
 
         html = f"""
-        <h2>📩 New Demo Request from Axtelica website</h2>
-        <p><b>Name:</b> {firstName} {lastName}</p>
-        <p><b>Email:</b> {email}</p>
-        <p><b>Company:</b> {company}</p>
-        <p><b>Phone:</b> {phone}</p>
-        <p><b>Employees:</b> {employees}</p>
-        <p><b>Country:</b> {country}</p>
-        <p><b>Schedule Demo For:</b> {scheduleDemoFor}</p>
-        <hr style="margin:20px 0;" />
-        <p style="font-size:12px;color:gray;">Submitted from Axtelica Demo Form</p>
+        <div style="font-family:Arial;padding:20px;">
+            <h2 style="color:#FF3366;">
+                📩 New Demo Request
+            </h2>
+
+            <p><b>Name:</b> {firstName} {lastName}</p>
+            <p><b>Email:</b> {email}</p>
+            <p><b>Company:</b> {company}</p>
+            <p><b>Phone:</b> {phone}</p>
+            <p><b>Employees:</b> {employees}</p>
+            <p><b>Country:</b> {country}</p>
+            <p><b>Demo For:</b> {scheduleDemoFor}</p>
+        </div>
         """
 
-        send_email("📩 New Demo Request from Axtelica", html, email)
-        return jsonify({"success": True})
+        sent = send_email(
+            "📩 New Demo Request",
+            html,
+            reply_to=email
+        )
+
+        if not sent:
+            return jsonify({
+                "success": False,
+                "error": "Email sending failed"
+            }), 500
+
+        return jsonify({
+            "success": True,
+            "message": "Demo request sent successfully"
+        })
 
     except Exception as e:
-        print("❌ DEMO error:", e)
-        return jsonify({"success": False, "error": str(e)}), 500
+        print("❌ DEMO ERROR:", str(e))
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
-# ── CONTACT ───────────────────────────────────────────────────
+# =========================================================
+# CONTACT ROUTE
+# =========================================================
 @app.route("/api/contact", methods=["POST"])
 def contact():
+
     try:
+
         data = request.get_json()
+
         if not data:
-            return jsonify({"success": False, "error": "No JSON data received"}), 400
+            return jsonify({
+                "success": False,
+                "error": "No JSON data received"
+            }), 400
 
-        email      = data.get("email",      "").strip()
-        firstName  = data.get("firstName",  "").strip()
-        lastName   = data.get("lastName",   "").strip()
-        company    = data.get("company",    "").strip()
-        phone      = data.get("phone",      "").strip()
-        department = data.get("department", "").strip()
-        message    = data.get("message",    "").strip()
-
-        for field, label in [
-            (firstName, "First Name"), (lastName, "Last Name"), (email, "Email"),
-            (company, "Company"), (phone, "Phone"), (department, "Department"),
-            (message, "Message"),
-        ]:
-            if not field:
-                return jsonify({"success": False, "error": f"{label} is required"}), 400
+        firstName = data.get("firstName", "")
+        lastName = data.get("lastName", "")
+        email = data.get("email", "")
+        company = data.get("company", "")
+        phone = data.get("phone", "")
+        department = data.get("department", "")
+        message = data.get("message", "")
 
         html = f"""
-        <div style="max-width:600px;margin:auto;font-family:Arial;padding:20px;
-                    border:1px solid #eee;border-radius:10px;">
-            <h2 style="color:#FF3366;">📩 New Contact Message from Axtelica</h2>
+        <div style="font-family:Arial;padding:20px;">
+            <h2 style="color:#FF3366;">
+                📩 New Contact Message
+            </h2>
+
             <p><b>Name:</b> {firstName} {lastName}</p>
             <p><b>Email:</b> {email}</p>
             <p><b>Company:</b> {company}</p>
             <p><b>Phone:</b> {phone}</p>
             <p><b>Department:</b> {department}</p>
-            <hr style="margin:20px 0;" />
-            <p><b>Message:</b></p><p>{message}</p>
-            <hr style="margin:20px 0;" />
-            <p style="font-size:12px;color:gray;">Submitted from Axtelica Contact Form</p>
+            <p><b>Message:</b> {message}</p>
         </div>
         """
-        send_email("📩 New Contact Message", html, email)
-        return jsonify({"success": True, "message": "Contact message sent successfully"})
+
+        sent = send_email(
+            "📩 New Contact Message",
+            html,
+            reply_to=email
+        )
+
+        if not sent:
+            return jsonify({
+                "success": False,
+                "error": "Email sending failed"
+            }), 500
+
+        return jsonify({
+            "success": True,
+            "message": "Message sent successfully"
+        })
 
     except Exception as e:
-        print("❌ CONTACT error:", e)
-        return jsonify({"success": False, "error": str(e)}), 500
+        print("❌ CONTACT ERROR:", str(e))
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
-# ── PRODUCT DEMO ──────────────────────────────────────────────
+# =========================================================
+# PRODUCT ROUTE
+# =========================================================
 @app.route("/api/product", methods=["POST"])
 def product():
+
     try:
+
         data = request.get_json()
+
         if not data:
-            return jsonify({"success": False, "error": "No JSON data received"}), 400
+            return jsonify({
+                "success": False,
+                "error": "No JSON data received"
+            }), 400
 
-        firstName = data.get("firstName", "").strip()
-        lastName  = data.get("lastName",  "").strip()
-        company   = data.get("company",   "").strip()
-        email     = data.get("email",     "").strip()
-        phone     = data.get("phone",     "").strip()
-        employees = data.get("employees", "").strip()
-        country   = data.get("country",   "").strip()
-
-        for field, label in [
-            (firstName, "First Name"), (lastName, "Last Name"), (company, "Company"),
-            (email, "Email"), (phone, "Phone"), (employees, "Employees"), (country, "Country"),
-        ]:
-            if not field:
-                return jsonify({"success": False, "error": f"{label} is required"}), 400
+        firstName = data.get("firstName", "")
+        lastName = data.get("lastName", "")
+        company = data.get("company", "")
+        email = data.get("email", "")
+        phone = data.get("phone", "")
+        employees = data.get("employees", "")
+        country = data.get("country", "")
 
         html = f"""
-        <div style="max-width:600px;margin:auto;font-family:Arial;padding:20px;
-                    border:1px solid #eee;border-radius:10px;">
-            <h2 style="color:#FF3366;">📩 New Demo Request From Axtelica Product</h2>
+        <div style="font-family:Arial;padding:20px;">
+            <h2 style="color:#FF3366;">
+                📩 New Product Demo Request
+            </h2>
+
             <p><b>Name:</b> {firstName} {lastName}</p>
-            <p><b>Company:</b> {company}</p>
             <p><b>Email:</b> {email}</p>
+            <p><b>Company:</b> {company}</p>
             <p><b>Phone:</b> {phone}</p>
             <p><b>Employees:</b> {employees}</p>
             <p><b>Country:</b> {country}</p>
-            <hr style="margin:20px 0;" />
-            <p style="font-size:12px;color:gray;">Submitted from Axtelica Demo Form</p>
         </div>
         """
-        send_email("📩 New Demo Request from Axtelica Product", html, email)
-        return jsonify({"success": True, "message": "Demo request sent successfully"})
+
+        sent = send_email(
+            "📩 New Product Demo Request",
+            html,
+            reply_to=email
+        )
+
+        if not sent:
+            return jsonify({
+                "success": False,
+                "error": "Email sending failed"
+            }), 500
+
+        return jsonify({
+            "success": True,
+            "message": "Product demo request sent"
+        })
 
     except Exception as e:
-        print("❌ PRODUCT error:", e)
-        return jsonify({"success": False, "error": str(e)}), 500
+        print("❌ PRODUCT ERROR:", str(e))
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
-# =========================
-# RUN SERVER
-# =========================
+# =========================================================
+# RUN APP
+# =========================================================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )
