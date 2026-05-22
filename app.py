@@ -18,11 +18,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 # =========================================================
 load_dotenv()
 
-MS_TENANT_ID     = os.getenv("MS_TENANT_ID")
-MS_CLIENT_ID     = os.getenv("MS_CLIENT_ID")
+MS_TENANT_ID = os.getenv("MS_TENANT_ID")
+MS_CLIENT_ID = os.getenv("MS_CLIENT_ID")
 MS_CLIENT_SECRET = os.getenv("MS_CLIENT_SECRET")
-MS_SENDER_EMAIL  = os.getenv("MS_SENDER_EMAIL")
-SALES_TO_EMAIL   = os.getenv("SALES_TO_EMAIL")
+MS_SENDER_EMAIL = os.getenv("MS_SENDER_EMAIL")
+SALES_TO_EMAIL = os.getenv("SALES_TO_EMAIL")
 
 CAPTCHA_SECRET = os.getenv(
     "CAPTCHA_SECRET",
@@ -36,6 +36,7 @@ app = Flask(__name__)
 
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://axtelica.com",
@@ -52,6 +53,7 @@ CORS(
 # MICROSOFT GRAPH ACCESS TOKEN
 # =========================================================
 def get_ms_access_token():
+
     url = f"https://login.microsoftonline.com/{MS_TENANT_ID}/oauth2/v2.0/token"
 
     payload = {
@@ -75,26 +77,42 @@ def get_ms_access_token():
 # =========================================================
 # SEND EMAIL USING MICROSOFT GRAPH
 # =========================================================
-def send_email(subject, html_content, reply_to=None):
+def send_email(
+    to_email,
+    subject,
+    html_content,
+    reply_to=None
+):
+
     try:
+
         access_token = get_ms_access_token()
 
         message = {
             "subject": subject,
+
             "body": {
                 "contentType": "HTML",
                 "content": html_content
             },
+
+            "from": {
+                "emailAddress": {
+                    "address": MS_SENDER_EMAIL,
+                    "name": "Axtelica"
+                }
+            },
+
             "toRecipients": [
                 {
                     "emailAddress": {
-                        "address": SALES_TO_EMAIL
+                        "address": to_email
                     }
                 }
             ]
         }
 
-        # reply to user email
+        # reply-to
         if reply_to:
             message["replyTo"] = [
                 {
@@ -109,7 +127,10 @@ def send_email(subject, html_content, reply_to=None):
             "Content-Type": "application/json"
         }
 
-        graph_url = f"https://graph.microsoft.com/v1.0/users/{MS_SENDER_EMAIL}/sendMail"
+        graph_url = (
+            f"https://graph.microsoft.com/v1.0/users/"
+            f"{MS_SENDER_EMAIL}/sendMail"
+        )
 
         response = http_requests.post(
             graph_url,
@@ -137,16 +158,241 @@ def send_email(subject, html_content, reply_to=None):
 
 
 # =========================================================
+# INTERNAL SALES EMAIL TEMPLATE
+# =========================================================
+def internal_email_template(
+    title,
+    name,
+    company,
+    email,
+    phone,
+    extra_fields="",
+    message=""
+):
+
+    return f"""
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="background-color:#f4f4f4;padding:20px;">
+
+      <tr>
+        <td align="center">
+
+          <table width="600" cellpadding="0" cellspacing="0"
+          border="0"
+          style="background:#ffffff;
+          border-radius:8px;
+          overflow:hidden;
+          border:1px solid #ddd;">
+
+            <tr>
+              <td style="padding:20px;
+              background:linear-gradient(90deg,#2563eb,#9333ea);
+              color:#ffffff;
+              text-align:center;">
+
+                <h2 style="margin:0;">
+                  {title}
+                </h2>
+
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:30px;">
+
+                <p style="font-family:Arial;
+                color:#333;">
+
+                You received a new inquiry from the website.
+
+                </p>
+
+                <table width="100%"
+                cellpadding="10"
+                cellspacing="0"
+                border="0"
+                style="border:1px solid #eee;
+                margin-top:20px;">
+
+                  <tr>
+                    <td width="30%"
+                    style="font-weight:bold;color:#555;">
+                    Name:
+                    </td>
+
+                    <td style="color:#333;">
+                    {name}
+                    </td>
+                  </tr>
+
+                  <tr style="background-color:#f9f9f9;">
+                    <td style="font-weight:bold;color:#555;">
+                    Company:
+                    </td>
+
+                    <td style="color:#333;">
+                    {company}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="font-weight:bold;color:#555;">
+                    Email:
+                    </td>
+
+                    <td style="color:#2563eb;">
+                    {email}
+                    </td>
+                  </tr>
+
+                  <tr style="background-color:#f9f9f9;">
+                    <td style="font-weight:bold;color:#555;">
+                    Phone:
+                    </td>
+
+                    <td style="color:#333;">
+                    {phone}
+                    </td>
+                  </tr>
+
+                  {extra_fields}
+
+                </table>
+
+                {message}
+
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px;
+              text-align:center;
+              font-size:12px;
+              color:#888;
+              background-color:#f9f9f9;">
+
+              © 2026 Axtelica. All rights reserved.
+
+              </td>
+            </tr>
+
+          </table>
+
+        </td>
+      </tr>
+
+    </table>
+    """
+
+
+# =========================================================
+# CUSTOMER AUTO RESPONSE TEMPLATE
+# =========================================================
+def customer_auto_response(name):
+
+    return f"""
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="background-color:#f4f4f4;padding:20px;">
+
+      <tr>
+        <td align="center">
+
+          <table width="600"
+          cellpadding="0"
+          cellspacing="0"
+          border="0"
+          style="background:#ffffff;
+          border-radius:8px;
+          overflow:hidden;
+          border:1px solid #ddd;">
+
+            <tr>
+              <td style="padding:30px;
+              background:linear-gradient(90deg,#2563eb,#9333ea);
+              color:#ffffff;
+              text-align:center;">
+
+                <h1 style="margin:0;font-size:24px;">
+                  Thanks for reaching out!
+                </h1>
+
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:30px;
+              font-family:Arial,sans-serif;
+              color:#333;">
+
+                <p>Hi {name},</p>
+
+                <p>
+                  Thank you for contacting Axtelica.
+                  We have received your request and
+                  our team is reviewing it.
+                </p>
+
+                <p>
+                  A member of our team will contact you
+                  within <b>24 business hours</b>.
+                </p>
+
+                <p style="margin-top:30px;">
+
+                  Explore our solutions:
+                  <a href="https://axtelica.com"
+                  style="color:#2563eb;
+                  font-weight:bold;">
+
+                  Visit Website
+
+                  </a>
+
+                </p>
+
+                <p>
+                  Best Regards,<br>
+                  The Axtelica Team
+                </p>
+
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px;
+              text-align:center;
+              font-size:12px;
+              color:#888;
+              background-color:#f9f9f9;">
+
+                Axtelica |
+                www.axtelica.com
+
+              </td>
+            </tr>
+
+          </table>
+
+        </td>
+      </tr>
+
+    </table>
+    """
+
+
+# =========================================================
 # CAPTCHA SETTINGS
 # =========================================================
-CAPTCHA_TTL = 600  # 10 minutes
+CAPTCHA_TTL = 600
 
 
 # =========================================================
 # GENERATE CAPTCHA TEXT
 # =========================================================
 def generate_captcha_text(length=5):
+
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
     return "".join(random.choices(chars, k=length))
 
 
@@ -154,6 +400,7 @@ def generate_captcha_text(length=5):
 # CREATE CAPTCHA TOKEN
 # =========================================================
 def make_captcha_token(answer):
+
     timestamp = str(int(time.time()))
 
     payload_string = f"{answer.upper()}:{timestamp}"
@@ -177,27 +424,27 @@ def make_captcha_token(answer):
 def verify_captcha_token(token, user_answer):
 
     try:
+
         if not token:
             return False, "CAPTCHA token missing"
 
         if not user_answer:
             return False, "Please enter CAPTCHA"
 
-        # split token
         payload, signature = token.rsplit(".", 1)
 
-        # create expected signature
         expected_signature = hmac.new(
             CAPTCHA_SECRET.encode(),
             payload.encode(),
             hashlib.sha256
         ).hexdigest()
 
-        # compare signatures
-        if not hmac.compare_digest(signature, expected_signature):
+        if not hmac.compare_digest(
+            signature,
+            expected_signature
+        ):
             return False, "Invalid CAPTCHA token"
 
-        # decode payload properly
         padded_payload = payload + "=" * (-len(payload) % 4)
 
         decoded = base64.urlsafe_b64decode(
@@ -208,11 +455,9 @@ def verify_captcha_token(token, user_answer):
 
         timestamp = int(timestamp)
 
-        # check expiry
         if time.time() - timestamp > CAPTCHA_TTL:
             return False, "CAPTCHA expired"
 
-        # compare answer
         if user_answer.strip().upper() != answer.strip().upper():
             return False, "Incorrect CAPTCHA code"
 
@@ -241,6 +486,7 @@ def generate_captcha_image(text):
 
     # random lines
     for _ in range(6):
+
         draw.line(
             (
                 random.randint(0, width),
@@ -258,6 +504,7 @@ def generate_captcha_image(text):
 
     # random dots
     for _ in range(100):
+
         draw.point(
             (
                 random.randint(0, width),
@@ -270,7 +517,6 @@ def generate_captcha_image(text):
             )
         )
 
-    # font
     font = None
 
     font_paths = [
@@ -279,6 +525,7 @@ def generate_captcha_image(text):
     ]
 
     for path in font_paths:
+
         try:
             font = ImageFont.truetype(path, 40)
             break
@@ -309,7 +556,9 @@ def generate_captcha_image(text):
 
         x += 32
 
-    image = image.filter(ImageFilter.GaussianBlur(radius=0.5))
+    image = image.filter(
+        ImageFilter.GaussianBlur(radius=0.5)
+    )
 
     buffer = io.BytesIO()
 
@@ -327,6 +576,7 @@ def generate_captcha_image(text):
 # =========================================================
 @app.route("/", methods=["GET"])
 def home():
+
     return jsonify({
         "success": True,
         "message": "Axtelica API Running 🚀"
@@ -340,6 +590,7 @@ def home():
 def captcha():
 
     try:
+
         captcha_text = generate_captcha_text()
 
         captcha_token = make_captcha_token(captcha_text)
@@ -355,6 +606,7 @@ def captcha():
         })
 
     except Exception as e:
+
         print("❌ CAPTCHA ERROR:", str(e))
 
         return jsonify({
@@ -379,14 +631,16 @@ def demo():
                 "error": "No data received"
             }), 400
 
-        # =================================================
         # CAPTCHA VERIFY
-        # =================================================
-        captcha_answer = data.get("captchaAnswer", "").strip()
+        captcha_answer = data.get(
+            "captchaAnswer",
+            ""
+        ).strip()
 
-        captcha_token = data.get("captchaToken", "").strip()
-
-        print("USER CAPTCHA:", captcha_answer)
+        captcha_token = data.get(
+            "captchaToken",
+            ""
+        ).strip()
 
         is_valid, captcha_error = verify_captcha_token(
             captcha_token,
@@ -394,14 +648,13 @@ def demo():
         )
 
         if not is_valid:
+
             return jsonify({
                 "success": False,
                 "error": captcha_error
             }), 400
 
-        # =================================================
         # FORM DATA
-        # =================================================
         firstName = data.get("firstName", "")
         lastName = data.get("lastName", "")
         company = data.get("company", "")
@@ -409,31 +662,71 @@ def demo():
         phone = data.get("phone", "")
         employees = data.get("employees", "")
         country = data.get("country", "")
-        scheduleDemoFor = data.get("scheduleDemoFor", "")
+        scheduleDemoFor = data.get(
+            "scheduleDemoFor",
+            ""
+        )
 
-        html = f"""
-        <div style="font-family:Arial;padding:20px;">
-            <h2 style="color:#FF3366;">
-                📩 New Demo Request
-            </h2>
+        name = f"{firstName} {lastName}"
 
-            <p><b>Name:</b> {firstName} {lastName}</p>
-            <p><b>Email:</b> {email}</p>
-            <p><b>Company:</b> {company}</p>
-            <p><b>Phone:</b> {phone}</p>
-            <p><b>Employees:</b> {employees}</p>
-            <p><b>Country:</b> {country}</p>
-            <p><b>Demo For:</b> {scheduleDemoFor}</p>
-        </div>
+        extra_fields = f"""
+        <tr>
+          <td style="font-weight:bold;color:#555;">
+          Employees:
+          </td>
+
+          <td style="color:#333;">
+          {employees}
+          </td>
+        </tr>
+
+        <tr style="background-color:#f9f9f9;">
+          <td style="font-weight:bold;color:#555;">
+          Country:
+          </td>
+
+          <td style="color:#333;">
+          {country}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="font-weight:bold;color:#555;">
+          Demo For:
+          </td>
+
+          <td style="color:#333;">
+          {scheduleDemoFor}
+          </td>
+        </tr>
         """
 
-        sent = send_email(
+        internal_html = internal_email_template(
+            title="📩 New Demo Request",
+            name=name,
+            company=company,
+            email=email,
+            phone=phone,
+            extra_fields=extra_fields
+        )
+
+        # Send to sales
+        sales_sent = send_email(
+            SALES_TO_EMAIL,
             "📩 New Demo Request",
-            html,
+            internal_html,
             reply_to=email
         )
 
-        if not sent:
+        # Auto response to customer
+        customer_sent = send_email(
+            email,
+            "Thank You for Contacting Axtelica",
+            customer_auto_response(name)
+        )
+
+        if not sales_sent or not customer_sent:
+
             return jsonify({
                 "success": False,
                 "error": "Email sending failed"
@@ -441,10 +734,11 @@ def demo():
 
         return jsonify({
             "success": True,
-            "message": "Demo request sent successfully"
+            "message": "Demo request submitted successfully"
         })
 
     except Exception as e:
+
         print("❌ DEMO ERROR:", str(e))
 
         return jsonify({
@@ -464,6 +758,7 @@ def contact():
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "error": "No JSON data received"
@@ -475,30 +770,61 @@ def contact():
         company = data.get("company", "")
         phone = data.get("phone", "")
         department = data.get("department", "")
-        message = data.get("message", "")
+        user_message = data.get("message", "")
 
-        html = f"""
-        <div style="font-family:Arial;padding:20px;">
-            <h2 style="color:#FF3366;">
-                📩 New Contact Message
-            </h2>
+        name = f"{firstName} {lastName}"
 
-            <p><b>Name:</b> {firstName} {lastName}</p>
-            <p><b>Email:</b> {email}</p>
-            <p><b>Company:</b> {company}</p>
-            <p><b>Phone:</b> {phone}</p>
-            <p><b>Department:</b> {department}</p>
-            <p><b>Message:</b> {message}</p>
+        extra_fields = f"""
+        <tr>
+          <td style="font-weight:bold;color:#555;">
+          Department:
+          </td>
+
+          <td style="color:#333;">
+          {department}
+          </td>
+        </tr>
+        """
+
+        message_html = f"""
+        <div style="margin-top:20px;">
+            <h3 style="color:#111;">
+            Message
+            </h3>
+
+            <p style="line-height:1.7;color:#444;">
+            {user_message}
+            </p>
         </div>
         """
 
-        sent = send_email(
+        internal_html = internal_email_template(
+            title="📩 New Contact Message",
+            name=name,
+            company=company,
+            email=email,
+            phone=phone,
+            extra_fields=extra_fields,
+            message=message_html
+        )
+
+        # Send to sales
+        sales_sent = send_email(
+            SALES_TO_EMAIL,
             "📩 New Contact Message",
-            html,
+            internal_html,
             reply_to=email
         )
 
-        if not sent:
+        # Auto response to customer
+        customer_sent = send_email(
+            email,
+            "Thank You for Contacting Axtelica",
+            customer_auto_response(name)
+        )
+
+        if not sales_sent or not customer_sent:
+
             return jsonify({
                 "success": False,
                 "error": "Email sending failed"
@@ -510,6 +836,7 @@ def contact():
         })
 
     except Exception as e:
+
         print("❌ CONTACT ERROR:", str(e))
 
         return jsonify({
@@ -529,6 +856,7 @@ def product():
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "error": "No JSON data received"
@@ -542,28 +870,56 @@ def product():
         employees = data.get("employees", "")
         country = data.get("country", "")
 
-        html = f"""
-        <div style="font-family:Arial;padding:20px;">
-            <h2 style="color:#FF3366;">
-                📩 New Product Demo Request
-            </h2>
+        name = f"{firstName} {lastName}"
 
-            <p><b>Name:</b> {firstName} {lastName}</p>
-            <p><b>Email:</b> {email}</p>
-            <p><b>Company:</b> {company}</p>
-            <p><b>Phone:</b> {phone}</p>
-            <p><b>Employees:</b> {employees}</p>
-            <p><b>Country:</b> {country}</p>
-        </div>
+        extra_fields = f"""
+        <tr>
+          <td style="font-weight:bold;color:#555;">
+          Employees:
+          </td>
+
+          <td style="color:#333;">
+          {employees}
+          </td>
+        </tr>
+
+        <tr style="background-color:#f9f9f9;">
+          <td style="font-weight:bold;color:#555;">
+          Country:
+          </td>
+
+          <td style="color:#333;">
+          {country}
+          </td>
+        </tr>
         """
 
-        sent = send_email(
+        internal_html = internal_email_template(
+            title="📩 New Product Demo Request",
+            name=name,
+            company=company,
+            email=email,
+            phone=phone,
+            extra_fields=extra_fields
+        )
+
+        # Send to sales
+        sales_sent = send_email(
+            SALES_TO_EMAIL,
             "📩 New Product Demo Request",
-            html,
+            internal_html,
             reply_to=email
         )
 
-        if not sent:
+        # Auto response to customer
+        customer_sent = send_email(
+            email,
+            "Thank You for Contacting Axtelica",
+            customer_auto_response(name)
+        )
+
+        if not sales_sent or not customer_sent:
+
             return jsonify({
                 "success": False,
                 "error": "Email sending failed"
@@ -575,6 +931,7 @@ def product():
         })
 
     except Exception as e:
+
         print("❌ PRODUCT ERROR:", str(e))
 
         return jsonify({
@@ -587,6 +944,7 @@ def product():
 # RUN APP
 # =========================================================
 if __name__ == "__main__":
+
     app.run(
         host="0.0.0.0",
         port=5000,
