@@ -309,6 +309,8 @@ def customer_auto_response(name):
             <tr>
               <td style="padding:30px;
               background:linear-gradient(90deg,#2563eb,#9333ea);
+              background:#4f46e5;
+                              
               color:#ffffff;
               text-align:center;">
 
