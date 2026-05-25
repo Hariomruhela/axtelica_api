@@ -167,7 +167,8 @@ def internal_email_template(
     email,
     phone,
     extra_fields="",
-    message=""
+    message="",
+    intro_text="A potential customer has requested a demo for Axtelica.",
 ):
 
     return f"""
@@ -185,17 +186,30 @@ def internal_email_template(
           border:1px solid #ddd;">
 
             <tr>
-              <td style="padding:20px;
-              background:linear-gradient(90deg,#2563eb,#9333ea);
-              color:#ffffff;
-              text-align:center;">
-
-                <h2 style="margin:0;">
-                  {title}
-                </h2>
-
-              </td>
-            </tr>
+  <td style="padding:0;text-align:center;">
+    <!--[if mso]>
+    <v:rect xmlns:v="urn:schemas-microsoft-com:vml"
+            fill="true" stroke="false"
+            style="width:600px;height:70px;">
+      <v:fill type="gradient"
+              color="#2563eb"
+              color2="#9333ea"
+              angle="90"/>
+      <v:textbox inset="0,0,0,0">
+    <![endif]-->
+    <div style="background:linear-gradient(90deg,#2563eb,#9333ea);
+                padding:20px;
+                text-align:center;">
+      <h2 style="margin:0;color:#ffffff;font-family:Arial,sans-serif;">
+        {title}
+      </h2>
+    </div>
+    <!--[if mso]>
+      </v:textbox>
+    </v:rect>
+    <![endif]-->
+  </td>
+</tr>
 
             <tr>
               <td style="padding:30px;">
@@ -203,7 +217,7 @@ def internal_email_template(
                 <p style="font-family:Arial;
                 color:#333;">
 
-                You received a new inquiry from the website.
+                {intro_text}
 
                 </p>
 
@@ -264,17 +278,42 @@ def internal_email_template(
               </td>
             </tr>
 
-            <tr>
-              <td style="padding:20px;
-              text-align:center;
-              font-size:12px;
-              color:#888;
-              background-color:#f9f9f9;">
+           <tr>
+  <td
+    style="
+      padding:20px;
+      text-align:center;
+      font-size:12px;
+      line-height:1.8;
+      color:#888888;
+      background-color:#f9f9f9;
+      font-family:Arial,sans-serif;
+    "
+  >
 
-              © 2026 Axtelica. All rights reserved.
+    This email was automatically generated from the
+    Axtelica website.
 
-              </td>
-            </tr>
+    <br><br>
+
+    <a
+      href="https://www.axtelica.com"
+      style="color:#2563eb;text-decoration:none;"
+    >
+      www.axtelica.com
+    </a>
+
+    &nbsp;|&nbsp;
+
+    <a
+      href="mailto:info@axtelica.com"
+      style="color:#2563eb;text-decoration:none;"
+    >
+      info@axtelica.com
+    </a>
+
+  </td>
+</tr>
 
           </table>
 
@@ -307,69 +346,128 @@ def customer_auto_response(name):
           border:1px solid #ddd;">
 
             <tr>
-              <td style="padding:30px;
-              background:linear-gradient(90deg,#2563eb,#9333ea);
-              color:#ffffff;
-              text-align:center;">
-
-                <h1 style="margin:0;font-size:24px;">
-                  Thanks for reaching out!
-                </h1>
-
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding:30px;
-              font-family:Arial,sans-serif;
-              color:#333;">
-
-                <p>Hi {name},</p>
-
-                <p>
-                  Thank you for contacting Axtelica.
-                  We have received your request and
-                  our team is reviewing it.
-                </p>
-
-                <p>
-                  A member of our team will contact you
-                  within <b>24 business hours</b>.
-                </p>
-
-                <p style="margin-top:30px;">
-
-                  Explore our solutions:
-                  <a href="https://axtelica.com"
-                  style="color:#2563eb;
-                  font-weight:bold;">
-
-                  Visit Website
-
-                  </a>
-
-                </p>
-
-                <p>
-                  Best Regards,<br>
-                  The Axtelica Team
-                </p>
-
-              </td>
-            </tr>
+  <td style="padding:0;text-align:center;">
+    <!--[if mso]>
+    <v:rect xmlns:v="urn:schemas-microsoft-com:vml"
+            fill="true" stroke="false"
+            style="width:600px;height:90px;">
+      <v:fill type="gradient"
+              color="#2563eb"
+              color2="#9333ea"
+              angle="90"/>
+      <v:textbox inset="0,0,0,0">
+    <![endif]-->
+    <div style="background:linear-gradient(90deg,#2563eb,#9333ea);
+                padding:30px;
+                text-align:center;">
+      <h1 style="margin:0;font-size:24px;color:#ffffff;font-family:Arial,sans-serif;">
+        Thank You for Contacting Axtelica
+      </h1>
+    </div>
+    <!--[if mso]>
+      </v:textbox>
+    </v:rect>
+    <![endif]-->
+  </td>
+</tr>
 
             <tr>
-              <td style="padding:20px;
-              text-align:center;
-              font-size:12px;
-              color:#888;
-              background-color:#f9f9f9;">
+  <td style="padding:30px;
+  font-family:Arial,sans-serif;
+  color:#333333;
+  line-height:1.8;">
 
-                Axtelica |
-                www.axtelica.com
+    <p style="margin-top:0;">
+      Hi {name},
+    </p>
 
-              </td>
-            </tr>
+    <p>
+      Thank you for reaching out to Axtelica.
+      We’ve successfully received your request and
+      our team is currently reviewing it.
+    </p>
+
+    <p>
+      One of our specialists will contact you within
+      the next <b>24 business hours</b>.
+    </p>
+
+    <div style="
+      margin-top:25px;
+      padding:18px;
+      background-color:#f8fafc;
+      border:1px solid #e5e7eb;
+      border-radius:8px;
+    ">
+
+      <p style="
+        margin-top:0;
+        font-weight:bold;
+        color:#111827;
+      ">
+        What Happens Next?
+      </p>
+
+      <p style="margin:8px 0;">
+        ✔ Request review by our team
+      </p>
+
+      <p style="margin:8px 0;">
+        ✔ Requirement evaluation
+      </p>
+
+      <p style="margin:8px 0;">
+        ✔ Personalized response/demo scheduling
+      </p>
+
+    </div>
+
+    <p style="margin-top:25px;">
+      Any queries?
+      <a href="mailto:info@axtelica.com"
+      style="color:#2563eb;
+      text-decoration:none;
+      font-weight:bold;">
+        info@axtelica.com
+      </a>
+    </p>
+
+    <p style="margin-top:30px;">
+      Best Regards,<br>
+      <b>The Axtelica Team</b>
+    </p>
+
+  </td>
+</tr>
+
+<tr>
+  <td style="
+    padding:20px;
+    text-align:center;
+    font-size:12px;
+    color:#888888;
+    background-color:#f9f9f9;
+    font-family:Arial,sans-serif;
+  ">
+
+    © 2026 Axtelica. All rights reserved.
+
+    <br><br>
+
+    <a href="https://www.axtelica.com"
+    style="color:#2563eb;text-decoration:none;">
+      www.axtelica.com
+    </a>
+
+    &nbsp;|&nbsp;
+
+    <a href="mailto:info@axtelica.com"
+    style="color:#2563eb;text-decoration:none;">
+      info@axtelica.com
+    </a>
+
+  </td>
+</tr>
 
           </table>
 
@@ -666,13 +764,17 @@ def demo():
             "scheduleDemoFor",
             ""
         )
+        priority = data.get(
+            "priority",
+            ""
+        )
 
         name = f"{firstName} {lastName}"
 
         extra_fields = f"""
         <tr>
           <td style="font-weight:bold;color:#555;">
-          Employees:
+          Company Size:
           </td>
 
           <td style="color:#333;">
@@ -692,28 +794,38 @@ def demo():
 
         <tr>
           <td style="font-weight:bold;color:#555;">
-          Demo For:
+          Product Interest:
           </td>
 
           <td style="color:#333;">
           {scheduleDemoFor}
           </td>
         </tr>
+        <tr>
+  <td style="font-weight:bold;color:#555;">
+  Priority:
+  </td>
+
+  <td style="color:#333;">
+  {priority}
+  </td>
+</tr>
         """
 
         internal_html = internal_email_template(
-            title="📩 New Demo Request",
+            title="📩 New Demo Request Received",
             name=name,
             company=company,
             email=email,
             phone=phone,
+            intro_text="A new customer has submitted a demo request through the Axtelica website.",
             extra_fields=extra_fields
         )
 
         # Send to sales
         sales_sent = send_email(
             SALES_TO_EMAIL,
-            "📩 New Demo Request",
+            "📩 New Demo Request Received",
             internal_html,
             reply_to=email
         )
@@ -805,6 +917,7 @@ def contact():
             email=email,
             phone=phone,
             extra_fields=extra_fields,
+            intro_text="You received a new inquiry from the Axtelica website.",
             message=message_html
         )
 
