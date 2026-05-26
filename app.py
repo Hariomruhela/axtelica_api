@@ -263,17 +263,19 @@ background-image:url('https://axtelica.vercel.app/border.png');
                     </td>
                     
                   </tr>
+                  
+
+                  {extra_fields}
+
                   <tr >
                     <td style="font-weight:bold;color:#555;">
-                    Date & Time:
+                    Submitted On:
                     </td>
 
                     <td style="color:#333;">
                     {current_datetime}
                     </td>
                     </tr>
-
-                  {extra_fields}
 
                 </table>
 
@@ -776,7 +778,7 @@ def demo():
           </td>
         </tr>
 
-        <tr style="background-color:#f9f9f9;">
+        <tr >
           <td style="font-weight:bold;color:#555;">
           Country:
           </td>
@@ -990,7 +992,7 @@ def product():
           </td>
         </tr>
 
-        <tr style="background-color:#f9f9f9;">
+        <tr >
           <td style="font-weight:bold;color:#555;">
           Country:
           </td>
