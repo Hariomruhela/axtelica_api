@@ -188,14 +188,13 @@ def internal_email_template(
            <tr>
   <td 
   background="https://axtelica.vercel.app/border.png"
-  style="padding:20px;
-  
-  color:#ffffff;
-  text-align:center;
-   background-image:url('https://axtelica.vercel.app/border.png');
+    style="padding:30px;
+background-image:url('https://axtelica.vercel.app/border.png');
     background-size:cover;
     background-repeat:no-repeat;
     background-position:center;
+  color:#ffffff;
+  text-align:center;
   ">
     <h2 style="margin:0;">
       {title}
