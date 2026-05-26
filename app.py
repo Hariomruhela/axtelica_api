@@ -185,29 +185,21 @@ def internal_email_template(
           overflow:hidden;
           border:1px solid #ddd;">
 
-            <tr>
-  <td style="padding:0;text-align:center;">
-    <!--[if mso]>
-    <v:rect xmlns:v="urn:schemas-microsoft-com:vml"
-            fill="true" stroke="false"
-            style="width:600px;height:70px;">
-      <v:fill type="gradient"
-              color="#2563eb"
-              color2="#9333ea"
-              angle="90"/>
-      <v:textbox inset="0,0,0,0">
-    <![endif]-->
-    <div style="background:linear-gradient(90deg,#2563eb,#9333ea);
-                padding:20px;
-                text-align:center;">
-      <h2 style="margin:0;color:#ffffff;font-family:Arial,sans-serif;">
-        {title}
-      </h2>
-    </div>
-    <!--[if mso]>
-      </v:textbox>
-    </v:rect>
-    <![endif]-->
+           <tr>
+  <td 
+  background="https://axtelica.vercel.app/border.png"
+  style="padding:20px;
+  
+  color:#ffffff;
+  text-align:center;
+   background-image:url('https://axtelica.vercel.app/border.png');
+    background-size:cover;
+    background-repeat:no-repeat;
+    background-position:center;
+  ">
+    <h2 style="margin:0;">
+      {title}
+    </h2>
   </td>
 </tr>
 
@@ -345,29 +337,19 @@ def customer_auto_response(name):
           overflow:hidden;
           border:1px solid #ddd;">
 
-            <tr>
-  <td style="padding:0;text-align:center;">
-    <!--[if mso]>
-    <v:rect xmlns:v="urn:schemas-microsoft-com:vml"
-            fill="true" stroke="false"
-            style="width:600px;height:90px;">
-      <v:fill type="gradient"
-              color="#2563eb"
-              color2="#9333ea"
-              angle="90"/>
-      <v:textbox inset="0,0,0,0">
-    <![endif]-->
-    <div style="background:linear-gradient(90deg,#2563eb,#9333ea);
-                padding:30px;
-                text-align:center;">
-      <h1 style="margin:0;font-size:24px;color:#ffffff;font-family:Arial,sans-serif;">
-        Thank You for Contacting Axtelica
-      </h1>
-    </div>
-    <!--[if mso]>
-      </v:textbox>
-    </v:rect>
-    <![endif]-->
+           <tr>
+  <td
+  background="https://axtelica.vercel.app/border.png"
+    style="padding:30px;
+background-image:url('https://axtelica.vercel.app/border.png');
+    background-size:cover;
+    background-repeat:no-repeat;
+    background-position:center;
+  color:#ffffff;
+  text-align:center;">
+    <h1 style="margin:0;font-size:24px;">
+      Thanks for reaching out!
+    </h1>
   </td>
 </tr>
 
@@ -382,7 +364,7 @@ def customer_auto_response(name):
     </p>
 
     <p>
-      Thank you for reaching out to Axtelica.
+      
       We’ve successfully received your request and
       our team is currently reviewing it.
     </p>
