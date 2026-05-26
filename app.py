@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-
+from datetime import datetime
 import os
 import io
 import random
@@ -169,8 +169,11 @@ def internal_email_template(
     extra_fields="",
     message="",
     intro_text="A potential customer has requested a demo for Axtelica.",
+    
 ):
-
+    current_datetime = datetime.now().strftime(
+        "%d %B %Y, %I:%M %p"
+    )
     return f"""
     <table width="100%" cellpadding="0" cellspacing="0" border="0"
     style="background-color:#f4f4f4;padding:20px;">
@@ -230,7 +233,7 @@ background-image:url('https://axtelica.vercel.app/border.png');
                     </td>
                   </tr>
 
-                  <tr style="background-color:#f9f9f9;">
+                  <tr >
                     <td style="font-weight:bold;color:#555;">
                     Company:
                     </td>
@@ -250,7 +253,7 @@ background-image:url('https://axtelica.vercel.app/border.png');
                     </td>
                   </tr>
 
-                  <tr style="background-color:#f9f9f9;">
+                  <tr >
                     <td style="font-weight:bold;color:#555;">
                     Phone:
                     </td>
@@ -258,7 +261,17 @@ background-image:url('https://axtelica.vercel.app/border.png');
                     <td style="color:#333;">
                     {phone}
                     </td>
+                    
                   </tr>
+                  <tr >
+                    <td style="font-weight:bold;color:#555;">
+                    Date & Time:
+                    </td>
+
+                    <td style="color:#333;">
+                    {current_datetime}
+                    </td>
+                    </tr>
 
                   {extra_fields}
 
@@ -347,7 +360,7 @@ background-image:url('https://axtelica.vercel.app/border.png');
   color:#ffffff;
   text-align:center;">
     <h1 style="margin:0;font-size:24px;">
-      Thanks for reaching out!
+      Thank You for Contacting Axtelica
     </h1>
   </td>
 </tr>
