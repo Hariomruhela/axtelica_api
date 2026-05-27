@@ -172,7 +172,7 @@ def internal_email_template(
     
 ):
     current_datetime = datetime.now().strftime(
-        "%d %B %Y, %I:%M %p"
+        "%d %B %Y"
     )
     return f"""
     <table width="100%" cellpadding="0" cellspacing="0" border="0"
